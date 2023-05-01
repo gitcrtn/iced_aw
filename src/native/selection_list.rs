@@ -60,7 +60,7 @@ where
     /// to set those.
     pub fn new(
         options: impl Into<Cow<'a, [T]>>,
-        on_selected: impl Fn(T) -> Message + 'static,
+        on_selected: impl Fn(usize) -> Message + 'static,
     ) -> Self {
         let options = options.into();
         let container = Container::new(Scrollable::new(List {
@@ -71,6 +71,8 @@ where
             style: <Renderer::Theme as StyleSheet>::Style::default(),
             on_selected: Box::new(on_selected),
             phantomdata: PhantomData::default(),
+            selected_index: None,
+            selected_index_applied: false,
         }))
         .padding(1);
 
@@ -91,7 +93,8 @@ where
     /// selected, the `style`, `text_size` and `padding`.
     pub fn new_with(
         options: impl Into<Cow<'a, [T]>>,
-        on_selected: impl Fn(T) -> Message + 'static,
+        on_selected: impl Fn(usize) -> Message + 'static,
+        selected_index: Option<usize>,
         text_size: f32,
         padding: f32,
         style: <Renderer::Theme as StyleSheet>::Style,
@@ -105,6 +108,8 @@ where
             style,
             on_selected: Box::new(on_selected),
             phantomdata: PhantomData::default(),
+            selected_index,
+            selected_index_applied: false,
         }))
         .padding(1);
 

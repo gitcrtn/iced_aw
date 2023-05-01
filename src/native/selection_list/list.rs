@@ -29,13 +29,17 @@ where
     /// Style for Font colors and Box hover colors.
     pub style: <Renderer::Theme as StyleSheet>::Style,
     /// Function Pointer On Select to call on Mouse button press.
-    pub on_selected: Box<dyn Fn(T) -> Message>,
+    pub on_selected: Box<dyn Fn(usize) -> Message>,
     /// The padding Width
     pub padding: f32,
     /// The Text Size
     pub text_size: f32,
     /// Shadow Type holder for Renderer.
     pub phantomdata: PhantomData<Renderer>,
+    /// selected index
+    pub selected_index: Option<usize>,
+    /// True if selected index is overwrited to last_selected_index
+    pub selected_index_applied: bool,
 }
 
 /// The Private [`ListState`] Handles the State of the inner list.
@@ -96,6 +100,14 @@ where
         let mut status = event::Status::Ignored;
         let list_state = state.state.downcast_mut::<ListState>();
 
+        let mut changed_selected_index = false;
+
+        if !self.selected_index_applied {
+            list_state.last_selected_index = self.selected_index.clone();
+            changed_selected_index = true;
+            self.selected_index_applied = true;
+        }
+
         if bounds.contains(cursor_position) {
             match event {
                 Event::Mouse(mouse::Event::CursorMoved { .. }) => {
@@ -119,15 +131,29 @@ where
                         list_state
                             .last_selected_index
                             .map_or(event::Status::Ignored, |last| {
-                                if let Some(option) = self.options.get(last) {
-                                    shell.publish((self.on_selected)(option.clone()));
+                                if let Some(_option) = self.options.get(last) {
+                                    shell.publish((self.on_selected)(last.clone()));
                                     event::Status::Captured
                                 } else {
                                     event::Status::Ignored
                                 }
                             });
                 }
-                _ => {}
+                _ => {
+                    if changed_selected_index {
+                        status =
+                        list_state
+                            .last_selected_index
+                            .map_or(event::Status::Ignored, |last| {
+                                if let Some(_option) = self.options.get(last) {
+                                    shell.publish((self.on_selected)(last.clone()));
+                                    event::Status::Captured
+                                } else {
+                                    event::Status::Ignored
+                                }
+                            });
+                    }
+                }
             }
         }
 
@@ -172,9 +198,15 @@ where
         let visible_options = &self.options[start..end.min(self.options.len())];
         let list_state = state.state.downcast_ref::<ListState>();
 
+        let selected_index = if !self.selected_index_applied {
+            self.selected_index.clone()
+        } else {
+            list_state.last_selected_index.clone()
+        };
+
         for (i, option) in visible_options.iter().enumerate() {
             let i = start + i;
-            let is_selected = list_state.last_selected_index == Some(i);
+            let is_selected = selected_index == Some(i);
             let is_hovered = list_state.hovered_option == Some(i);
 
             let bounds = Rectangle {
